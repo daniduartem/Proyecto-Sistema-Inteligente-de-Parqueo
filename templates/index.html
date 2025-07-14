@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Sistema de Parqueo</title>
+  <title>Sistema de Parqueo Inteligente</title>
   <link rel="stylesheet" href="/static/style.css">
   <style>
     form label {
@@ -10,6 +10,26 @@
       margin-top: 8px;
       margin-bottom: 4px;
       font-weight: bold;
+    }
+    .fila {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .espacio {
+      width: 60px;
+      height: 60px;
+      text-align: center;
+      line-height: 60px;
+      border-radius: 5px;
+      font-weight: bold;
+      border: 2px solid #ccc;
+    }
+    .libre {
+      background-color: #c8e6c9;
+    }
+    .ocupado {
+      background-color: #ffcdd2;
     }
   </style>
 </head>
@@ -19,25 +39,26 @@
   </header>
 
   <section class="estado">
-    <div class="bloque-parqueo">
-      <h2>Estado del Parqueo</h2>
-      <div class="tabla-parqueo">
-        {% for fila in matriz %}
-          <div class="fila">
-            {% for espacio in fila %}
-              {% if espacio %}
-                <div class="espacio {{ 'libre' if espacio.Ocupado == 0 else 'ocupado' }}">
-                  {{ espacio.IDEspacio }}
-                </div>
-              {% else %}
-                <div class="espacio libre"></div>
-              {% endif %}
-            {% endfor %}
-          </div>
+  <div class="bloque-parqueo">
+    <h2>Estado del Parqueo por Fila</h2>
+    {% for fila in matriz %}
+    <div>
+      <h3>Fila {{ loop.index }}</h3>
+      <div class="fila">
+        {% for espacio in fila %}
+        {% if espacio %}
+        <div class="espacio {{ 'libre' if espacio.Ocupado == 0 else 'ocupado' }}">
+          {{ espacio.IDEspacio }}
+        </div>
+        {% else %}
+        <div class="espacio libre">-</div>
+        {% endif %}
         {% endfor %}
       </div>
     </div>
-  </section>
+    {% endfor %}
+  </div>
+</section>
 
   {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -76,17 +97,30 @@
     </div>
 
     <div class="bloque-formulario">
-      <h2>Reservación</h2>
-      <form action="/reservar" method="post">
-        <input type="text" name="cedula_reserva" placeholder="Cédula Propietario" required>
-        <input type="text" name="placa_reserva" placeholder="Placa Vehículo" required>
-        <input type="text" name="espacio" placeholder="Espacio (ej: P01)" required>
-        <input type="date" name="fecha" required>
-        <label for="hora_entrada">Hora de entrada:</label>
-        <input type="time" name="hora_entrada" id="hora_entrada" required>
-        <button type="submit" class="registro">Reservar Espacio</button>
-      </form>
-    </div>
+  <h2>Reservación</h2>
+  <form action="/reservar" method="post">
+    <input type="text" name="cedula_reserva" placeholder="Cédula Propietario" required>
+    <input type="text" name="placa_reserva" placeholder="Placa Vehículo" required>
+
+    <label for="espacio">Selecciona un espacio disponible:</label>
+    <select name="espacio" id="espacio" class="select-espacio" required>
+  {% for fila in matriz %}
+    {% for espacio in fila %}
+      {% if espacio and espacio.Ocupado == 0 %}
+         <option value="{{ espacio.IDEspacio }}">
+           Espacio {{ espacio.Etiqueta }}
+         </option>
+     {% endif %}
+    {% endfor %}
+  {% endfor %}
+</select>
+
+    <input type="date" name="fecha" required>
+    <label for="hora_entrada">Hora de entrada:</label>
+    <input type="time" name="hora_entrada" id="hora_entrada" required>
+    <button type="submit" class="registro">Reservar Espacio</button>
+  </form>
+</div>
 
     <div class="bloque-formulario">
       <h2>Facturación</h2>

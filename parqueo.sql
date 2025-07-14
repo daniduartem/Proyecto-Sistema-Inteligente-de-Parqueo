@@ -49,18 +49,18 @@ CREATE TABLE Reservacion (
     Placa VARCHAR(10) NOT NULL,
     Fecha DATE NOT NULL,
     HoraEntrada VARCHAR(5) NOT NULL, -- Formato HH:MM
-    HoraSalida VARCHAR(5),           -- Se llena al facturar
+    HoraSalida VARCHAR(5),
     CONSTRAINT FK_Reservacion_Persona FOREIGN KEY (CedulaPropietario) REFERENCES Persona(Cedula),
     CONSTRAINT FK_Reservacion_Espacio FOREIGN KEY (IDEspacio) REFERENCES Espacio(IDEspacio),
     CONSTRAINT FK_Reservacion_Vehiculo FOREIGN KEY (Placa) REFERENCES Vehiculo(Placa)
 );
 
--- Tabla Factura con duración decimal
+-- Tabla Factura
 CREATE TABLE Factura (
     IDFactura INT PRIMARY KEY IDENTITY(1,1),
     IDReservacion INT NOT NULL,
     FechaGeneracion DATETIME NOT NULL DEFAULT GETDATE(),
-    HorasUsadas DECIMAL(6,2) NOT NULL, -- Ej: 2.50 horas
+    HorasUsadas DECIMAL(6,2) NOT NULL,
     TotalPagar MONEY NOT NULL,
     CONSTRAINT FK_Factura_Reservacion FOREIGN KEY (IDReservacion) REFERENCES Reservacion(IDReservacion)
 );
@@ -73,6 +73,17 @@ CREATE TABLE ColaEspera (
     FechaIngreso DATETIME NOT NULL DEFAULT GETDATE(),
     CONSTRAINT FK_Cola_Persona FOREIGN KEY (Cedula) REFERENCES Persona(Cedula),
     CONSTRAINT FK_Cola_Vehiculo FOREIGN KEY (Placa) REFERENCES Vehiculo(Placa)
+);
+
+-- Tabla para pilas de estacionamiento en fila
+CREATE TABLE PilaEstacionamiento (
+    IDFila INT NOT NULL,
+    IDEspacio VARCHAR(10) NOT NULL,
+    Placa VARCHAR(10) NOT NULL,
+    PosicionEnPila INT NOT NULL,
+    PRIMARY KEY (IDFila, PosicionEnPila),
+    CONSTRAINT FK_Pila_Vehiculo FOREIGN KEY (Placa) REFERENCES Vehiculo(Placa),
+    CONSTRAINT FK_Pila_Espacio FOREIGN KEY (IDEspacio) REFERENCES Espacio(IDEspacio)
 );
 
 -- MERGE ejemplo para procesar vehículo

@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, flash
 import pyodbc
 from datetime import datetime, timedelta
+import re  
 
 app = Flask(__name__)
 app.secret_key = 'clave_segura'
@@ -13,7 +14,7 @@ MAX_HORAS_PERMITIDAS = 10
 class BaseDatos:
     def __init__(self):
         self.con = pyodbc.connect(
-            r'DRIVER={SQL Server};SERVER=EV\SQLEXPRESS;DATABASE=ParqueoDB;Trusted_Connection=yes;'
+            r'DRIVER={SQL Server};SERVER=DANIELA\SQLEXPRESS;DATABASE=ParqueoDB;Trusted_Connection=yes;'
         )
         self.cursor = self.con.cursor()
 
@@ -53,17 +54,53 @@ class Vehiculo(BaseDatos):
         self.ejecutar(sql, (placa, marca, modelo, cedula))
         return "Vehículo registrado correctamente."
 
+# Clase Pila
+class Pila(BaseDatos):
+    def obtener_pila(self, id_fila):
+        sql = "SELECT IDEspacio, Placa FROM PilaEstacionamiento WHERE IDFila=? ORDER BY PosicionEnPila DESC"
+        return self.consultar(sql, (id_fila,))
+
+    def apilar(self, id_fila, id_espacio, placa):
+        pila_actual = self.obtener_pila(id_fila)
+        nueva_posicion = len(pila_actual)
+        sql = ("INSERT INTO PilaEstacionamiento (IDFila, IDEspacio, Placa, PosicionEnPila) "
+               "VALUES (?, ?, ?, ?)")
+        self.ejecutar(sql, (id_fila, id_espacio, placa, nueva_posicion))
+
+    def desapilar(self, id_fila):
+        sql = ("SELECT TOP 1 IDEspacio, Placa FROM PilaEstacionamiento "
+               "WHERE IDFila=? ORDER BY PosicionEnPila DESC")
+        resultado = self.consultar(sql, (id_fila,))
+        if resultado:
+            espacio, placa = resultado[0]
+            self.ejecutar("DELETE FROM PilaEstacionamiento WHERE IDFila=? AND IDEspacio=?", (id_fila, espacio))
+            return placa
+        return None
+    
 # Clase Espacio
 class Espacio(BaseDatos):
     def obtener_matriz(self):
-        resultado = self.consultar("SELECT IDEspacio, Ocupado FROM Espacio ORDER BY IDEspacio")
-        matriz = [[None for _ in range(5)] for _ in range(5)]
-        for i in range(5):
-            for j in range(5):
-                index = i * 5 + j
-                if index < len(resultado):
-                    matriz[i][j] = resultado[index]
-        return matriz
+     resultado = self.consultar("SELECT IDEspacio, Ocupado FROM Espacio ORDER BY IDEspacio")
+     matriz = [[None for _ in range(5)] for _ in range(5)]
+
+     for i in range(5):
+        for j in range(5):
+            index = i * 5 + j
+            if index < len(resultado):
+                espacio_raw, ocupado = resultado[index]
+
+                # Convertimos "P01" en 1
+                import re
+                numero = re.search(r'\d+', str(espacio_raw))
+                espacio_id = int(numero.group()) if numero else index + 1
+
+                matriz[i][j] = {
+                    "IDEspacio": espacio_id,           # valor 1–25
+                    "Ocupado": int(ocupado),
+                    "Etiqueta": str(espacio_id)        # también muestra como "1", "2", ...
+                }
+
+     return matriz
 
     def espacio_disponible(self, id_espacio):
         resultado = self.consultar("SELECT Ocupado FROM Espacio WHERE IDEspacio=?", (id_espacio,))
@@ -79,26 +116,37 @@ class Espacio(BaseDatos):
 # Clase Reservacion
 class Reservacion(BaseDatos):
     def registrar(self, cedula, placa, id_espacio, fecha, hora_entrada):
-        espacio = Espacio()
-        persona = self.consultar("SELECT 1 FROM Persona WHERE Cedula=?", (cedula,))
-        if not persona:
-            return f"Error: La cédula '{cedula}' no está registrada."
+    # Convertir a formato "P01"
+        id_espacio = f'P{int(id_espacio):02d}'
 
-        vehiculo = self.consultar("SELECT 1 FROM Vehiculo WHERE Placa=?", (placa,))
+        espacio = Espacio()
+        pila = Pila()
+
+        persona = self.consultar("SELECT 1 FROM Persona WHERE Cedula = ?", (cedula,))
+        if not persona:
+           return f"Error: La cédula '{cedula}' no está registrada."
+
+        vehiculo = self.consultar("SELECT 1 FROM Vehiculo WHERE Placa = ?", (placa,))
         if not vehiculo:
-            return f"Error: La placa '{placa}' no está registrada."
+          return f"Error: La placa '{placa}' no está registrada."
 
         if not espacio.espacio_disponible(id_espacio):
-            if not espacio.hay_espacio_libre():
-                self.ejecutar("INSERT INTO ColaEspera (Cedula, Placa) VALUES (?, ?)", (cedula, placa))
-                return "Todos los espacios están ocupados. Se agregó a la cola de espera. Intente de nuevo mas tarde"
-            else:
-                return f"Espacio '{id_espacio}' está ocupado. Elija otro."
+           if not espacio.hay_espacio_libre():
+              self.ejecutar("INSERT INTO ColaEspera (Cedula, Placa) VALUES (?, ?)", (cedula, placa))
+              return "Todos los espacios están ocupados. Se agregó a la lista de espera."
+           else:
+              return f"Espacio '{id_espacio}' está ocupado. Elija otro espacio."
 
         espacio.marcar_ocupado(id_espacio, placa)
-        sql = ("INSERT INTO Reservacion (CedulaPropietario, IDEspacio, Placa, Fecha, HoraEntrada) "
-               "VALUES (?, ?, ?, ?, ?)")
+        fila_id = int(re.search(r'\d+', id_espacio).group()) // 5
+        pila.apilar(fila_id, id_espacio, placa)
+
+        sql = (
+        "INSERT INTO Reservacion (CedulaPropietario, IDEspacio, Placa, Fecha, HoraEntrada) "
+        "VALUES (?, ?, ?, ?, ?)"
+        )
         self.ejecutar(sql, (cedula, id_espacio, placa, fecha, hora_entrada))
+
         return "Reservación registrada correctamente."
 
 # Clase Factura
