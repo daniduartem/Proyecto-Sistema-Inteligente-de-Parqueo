@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Sistema de Parqueo</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    form label {
+      display: block;
+      margin-top: 8px;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SISTEMA DE PARQUEO INTELIGENTE</h1>
+  </header>
+
+  <section class="estado">
+    <div class="bloque-parqueo">
+      <h2>Estado del Parqueo</h2>
+      <div class="tabla-parqueo">
+        {% for fila in matriz %}
+          <div class="fila">
+            {% for espacio in fila %}
+              {% if espacio %}
+                <div class="espacio {{ 'libre' if espacio.Ocupado == 0 else 'ocupado' }}">
+                  {{ espacio.IDEspacio }}
+                </div>
+              {% else %}
+                <div class="espacio libre"></div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <section class="mensajes">
+        <h3>Nota:</h3>
+        {% for mensaje in messages %}
+          <p>{{ mensaje }}</p>
+        {% endfor %}
+      </section>
+    {% endif %}
+  {% endwith %}
+
+  <section class="formularios">
+
+    <div class="bloque-formulario">
+      <h2>Registro de Persona</h2>
+      <form action="/registrar_persona" method="post">
+        <input type="text" name="cedula" placeholder="Cédula" required>
+        <input type="text" name="nombre" placeholder="Nombre" required>
+        <input type="text" name="apellido" placeholder="Apellido" required>
+        <input type="text" name="telefono" placeholder="Teléfono" required>
+        <input type="text" name="direccion" placeholder="Dirección" required>
+        <button type="submit" class="registro">Registrar Persona</button>
+      </form>
+    </div>
+
+    <div class="bloque-formulario">
+      <h2>Registro de Vehículo</h2>
+      <form action="/registrar_vehiculo" method="post">
+        <input type="text" name="placa" placeholder="Placa" required>
+        <input type="text" name="marca" placeholder="Marca" required>
+        <input type="text" name="modelo" placeholder="Modelo" required>
+        <input type="text" name="cedula_propietario" placeholder="Cédula Propietario" required>
+        <button type="submit" class="registro">Registrar Vehículo</button>
+      </form>
+    </div>
+
+    <div class="bloque-formulario">
+      <h2>Reservación</h2>
+      <form action="/reservar" method="post">
+        <input type="text" name="cedula_reserva" placeholder="Cédula Propietario" required>
+        <input type="text" name="placa_reserva" placeholder="Placa Vehículo" required>
+        <input type="text" name="espacio" placeholder="Espacio (ej: P01)" required>
+        <input type="date" name="fecha" required>
+        <label for="hora_entrada">Hora de entrada:</label>
+        <input type="time" name="hora_entrada" id="hora_entrada" required>
+        <button type="submit" class="registro">Reservar Espacio</button>
+      </form>
+    </div>
+
+    <div class="bloque-formulario">
+      <h2>Facturación</h2>
+      <form action="/facturar" method="post">
+        <label for="id_reservacion">ID Reservación:</label>
+        <input type="number" name="id_reservacion" id="id_reservacion" placeholder="ID Reservación" required>
+
+        <label for="hora_salida" style="margin-top:10px;">Hora de salida:</label>
+        <input type="datetime-local" name="hora_salida" id="hora_salida" required>
+
+        <button type="submit" class="registro">Generar Factura</button>
+      </form>
+    </div>
+
+  </section>
+</body>
+</html>
